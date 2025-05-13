@@ -232,7 +232,7 @@ class Score:
     def __init__(self):
         self.font = pg.font.Font(None, 50)
         self.color = (0, 0, 255)
-        self.value = 0
+        self.value = 50
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         self.rect = self.image.get_rect()
         self.rect.center = 100, HEIGHT-50
@@ -240,6 +240,48 @@ class Score:
     def update(self, screen: pg.Surface):
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
+
+
+class Shield(pg.sprite.Sprite):  # 追加機能５
+    """
+    こうかとんの前に防御壁を出現させ，着弾を防ぐ
+    """
+
+    def __init__(self, bird: Bird, life: int):
+        super().__init__()
+        
+        self.life = life
+        self.bird = bird
+        self.image_angle = 0
+        self.image = pg.Surface((20, bird.rect.height * 2))
+        pg.draw.rect(self.image, (0, 0, 255), pg.Rect(0, 0, 20, bird.rect.height * 2))
+        vx, vy = bird.dire
+        self.angle = math.degrees(math.atan2(-vy, vx))
+        self.image = pg.transform.rotozoom(self.image, self.angle, 1.0)
+        self.image_angle = self.angle
+        self.image.set_colorkey((0, 0, 0)) 
+        self.rect = self.image.get_rect(center=bird.rect.center)
+        self.rect.centerx += bird.rect.width * vx
+        self.rect.centery += bird.rect.width * vy
+
+    def update(self):
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+
+        self.rect = self.image.get_rect()
+        vx, vy = self.bird.dire
+        self.rect = self.image.get_rect()
+        self.angle = math.degrees(math.atan2(-vy, vx))
+        diff_angle = self.angle - self.image_angle
+        if diff_angle != 0:  # 前回と同じじゃないとき
+            self.image = pg.transform.rotate(self.image, diff_angle)
+            self.image_angle = self.angle    
+        
+        self.rect = self.image.get_rect(center=self.bird.rect.center)
+        self.angle_rad = math.atan2(-vy, vx)
+        self.rect.centerx += self.bird.rect.width * vx
+        self.rect.centery += self.bird.rect.width * vy
 
 
 def main():
@@ -253,6 +295,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    shield = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -263,6 +306,12 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+
+            if event.type == pg.KEYDOWN and event.key == pg.K_s and score.value >= 50:  # 追加機能５ 
+                    if not shield:
+                        shield.add(Shield(bird, 400))
+                        score.value -= 50
+
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -288,6 +337,10 @@ def main():
             pg.display.update()
             time.sleep(2)
             return
+        
+        for bomb in pg.sprite.groupcollide(bombs, shield, True, False).keys():   # 追加機能５
+            exps.add(Explosion(bomb, 50))
+            score.value += 1  # 1点アップ
 
         bird.update(key_lst, screen)
         beams.update()
@@ -299,6 +352,10 @@ def main():
         exps.update()
         exps.draw(screen)
         score.update(screen)
+        shield.update()
+        shield.draw(screen)
+
+
         pg.display.update()
         tmr += 1
         clock.tick(50)
