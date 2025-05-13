@@ -401,12 +401,12 @@ def main():
             if event.type == pg.QUIT:
                 return 0
             if event.type == pg.KEYDOWN:
-                if event.key == pg.K_LSHIFT:
-                    beams.add(Beam(bird))
                 if event.key == pg.K_SPACE:
-                    neobeam = NeoBeam(bird, 5)  
-                    beams.add(neobeam.gen_beams())
-                       
+                    beams.add(Beam(bird))
+                    if key_lst[pg.K_LSHIFT]:
+                        neobeam = NeoBeam(bird, 5)  
+                        beams.add(neobeam.gen_beams())
+                        
             # Feature 4
             if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT and bird.state=="normal" and score.value>=100:
                 bird.state="hyper"; bird.hyper_life=500; score.value-=100
