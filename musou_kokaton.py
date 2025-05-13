@@ -130,6 +130,7 @@ class Bomb(pg.sprite.Sprite):
         self.rect.centerx = emy.rect.centerx
         self.rect.centery = emy.rect.centery+emy.rect.height//2
         self.speed = 6
+        self.state = "normal"
 
     def update(self):
         """
@@ -168,6 +169,36 @@ class Beam(pg.sprite.Sprite):
         """
         self.rect.move_ip(self.speed*self.vx, self.speed*self.vy)
         if check_bound(self.rect) != (True, True):
+            self.kill()
+
+
+class Emp(pg.sprite.Sprite):
+    """
+    電磁パルスのクラス
+    """
+    def __init__(self,enemys,bombs):
+        """
+        empのSurfaceを生成
+        引数：エネミーグループ、爆弾グループ
+        """
+        super().__init__()
+        self.life = 3
+        self.image = pg.Surface((WIDTH,HEIGHT),0)
+        pg.Surface.set_alpha(self.image, 128)
+        pg.draw.rect(self.image,("#FFFF00"),(0,0,WIDTH,HEIGHT))
+
+        self.rect = self.image.get_rect()
+        for enemy in enemys:
+            enemy.interval = math.inf
+            enemy.image = pg.transform.laplacian(enemy.image)
+
+        for bomb in bombs:
+            bomb.speed /= 2
+            bomb.state = "inactive"
+
+    def update(self):
+        self.life -= 1
+        if self.life < 0:
             self.kill()
 
 
@@ -236,7 +267,7 @@ class Score:
     def __init__(self):
         self.font = pg.font.Font(None, 50)
         self.color = (0, 0, 255)
-        self.value = 50
+        self.value = 0
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         self.rect = self.image.get_rect()
         self.rect.center = 100, HEIGHT-50
@@ -318,6 +349,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    emps = pg.sprite.Group()
     gravitys = pg.sprite.Group()
     shield = pg.sprite.Group()
 
@@ -334,6 +366,9 @@ def main():
                 if event.key == pg.K_RETURN and score.value >= 200:
                     gravitys.add(Gravity(400))
                     score.value -= 200
+            if event.type == pg.KEYDOWN and event.key == pg.K_e and score.value >= 20:
+                emps.add(Emp(emys,bombs))
+                score.value -= 20
 
 
             if event.type == pg.KEYDOWN and event.key == pg.K_s and score.value >= 50:  # 追加機能５ 
@@ -363,11 +398,12 @@ def main():
             score.value += 1
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):
-            bird.change_img(8, screen)
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
+            if bomb.state == "normal":
+                bird.change_img(8, screen)
+                score.update(screen)
+                pg.display.update()
+                time.sleep(2)
+                return
 
         for bomb in pg.sprite.groupcollide(bombs,gravitys, True, False):
             exps.add(Explosion(bomb, 50))
@@ -386,6 +422,8 @@ def main():
         bird.update(key_lst, screen)
         beams.update()
         beams.draw(screen)
+        emps.update()
+        emps.draw(screen)
         emys.update()
         emys.draw(screen)
         bombs.update()
